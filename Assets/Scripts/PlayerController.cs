@@ -12,10 +12,12 @@ public class PlayerController : MonoBehaviour
     public Transform groundCheck;
     public float groundCheckRadius = 0.08f;
     public LayerMask groundLayer;
+    public Collider2D moveBounds;
 
     Rigidbody2D rb;
     Animator animator;
     SpriteRenderer spriteRenderer;
+    Collider2D body;
 
     bool isGrounded;
     float baseGravityScale;
@@ -25,12 +27,14 @@ public class PlayerController : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        body = GetComponent<Collider2D>();
         baseGravityScale = rb.gravityScale;
     }
 
     void Update()
     {
-        float move = Input.GetAxisRaw("Horizontal");
+        float input = Input.GetAxisRaw("Horizontal");
+        float move = FilterMoveAgainstBounds(input);
 
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
@@ -53,12 +57,56 @@ public class PlayerController : MonoBehaviour
         else
             rb.gravityScale = baseGravityScale;
 
-        animator.SetBool("IsWalking", move != 0f && isGrounded);
+        animator.SetBool("IsWalking", input != 0f && isGrounded);
         animator.SetBool("IsGrounded", isGrounded);
         animator.SetFloat("VelocityY", rb.velocity.y);
 
-        if (move != 0f)
-            spriteRenderer.flipX = move < 0f;
+        if (input != 0f)
+            spriteRenderer.flipX = input < 0f;
+
+        ClampToMoveBounds();
+    }
+
+    float FilterMoveAgainstBounds(float move)
+    {
+        if (moveBounds == null || move == 0f)
+            return move;
+
+        Bounds b = moveBounds.bounds;
+        float half = body != null ? body.bounds.extents.x : 0.1f;
+        float x = rb.position.x;
+
+        if (move < 0f && x <= b.min.x + half)
+            return 0f;
+        if (move > 0f && x >= b.max.x - half)
+            return 0f;
+
+        return move;
+    }
+
+    void ClampToMoveBounds()
+    {
+        if (moveBounds == null)
+            return;
+
+        Bounds b = moveBounds.bounds;
+        float half = body != null ? body.bounds.extents.x : 0.1f;
+        Vector2 p = rb.position;
+        float minX = b.min.x + half;
+        float maxX = b.max.x - half;
+
+        if (p.x < minX)
+        {
+            p.x = minX;
+            rb.velocity = new Vector2(0f, rb.velocity.y);
+        }
+        else if (p.x > maxX)
+        {
+            p.x = maxX;
+            rb.velocity = new Vector2(0f, rb.velocity.y);
+        }
+
+        rb.position = p;
     }
 
     void OnDrawGizmosSelected()
