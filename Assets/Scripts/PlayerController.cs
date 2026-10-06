@@ -13,6 +13,11 @@ public class PlayerController : MonoBehaviour
     public float groundCheckRadius = 0.08f;
     public LayerMask groundLayer;
     public Collider2D moveBounds;
+    public Collider2D attackHitbox;
+    [Range(0f, 1f)]
+    public float attackHitStart = 0.33f;
+    [Range(0f, 1f)]
+    public float attackHitEnd = 0.75f;
 
     Rigidbody2D rb;
     Animator animator;
@@ -20,7 +25,9 @@ public class PlayerController : MonoBehaviour
     Collider2D body;
 
     bool isGrounded;
+    bool isAttacking;
     float baseGravityScale;
+    Vector2 attackHitboxLocalPos;
 
     void Start()
     {
@@ -29,19 +36,36 @@ public class PlayerController : MonoBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
         body = GetComponent<Collider2D>();
         baseGravityScale = rb.gravityScale;
+        if (attackHitbox != null)
+        {
+            attackHitboxLocalPos = attackHitbox.transform.localPosition;
+            attackHitbox.enabled = false;
+        }
     }
 
     void Update()
     {
         float input = Input.GetAxisRaw("Horizontal");
-        float move = FilterMoveAgainstBounds(input);
 
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+        AnimatorStateInfo attackState = animator.GetCurrentAnimatorStateInfo(0);
+        bool inAttack1 = attackState.IsName("Attack1");
+        bool inAttack2 = attackState.IsName("Attack2");
+        bool inAttack3 = attackState.IsName("Attack3");
+        isAttacking = inAttack1 || inAttack2 || inAttack3;
+
+        // 地上起手，或连招中再按 J；第三刀期间不再起手
+        if (Input.GetKeyDown(KeyCode.J) && isGrounded && !inAttack3)
+            animator.SetTrigger("Attack");
+
+        float move = 0f;
+        if (!isAttacking)
+            move = FilterMoveAgainstBounds(input);
 
         rb.velocity = new Vector2(move * moveSpeed, rb.velocity.y);
 
         // 按下跳跃：同一帧起跳并触发 Jump 动画（前摇与离地同步）
-        if (Input.GetButtonDown("Jump") && isGrounded)
+        if (Input.GetButtonDown("Jump") && isGrounded && !isAttacking)
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
             animator.SetTrigger("Jump");
@@ -57,14 +81,29 @@ public class PlayerController : MonoBehaviour
         else
             rb.gravityScale = baseGravityScale;
 
-        animator.SetBool("IsWalking", input != 0f && isGrounded);
+        animator.SetBool("IsWalking", input != 0f && isGrounded && !isAttacking);
         animator.SetBool("IsGrounded", isGrounded);
         animator.SetFloat("VelocityY", rb.velocity.y);
 
-        if (input != 0f)
+        if (!isAttacking && input != 0f)
             spriteRenderer.flipX = input < 0f;
 
+        UpdateAttackHitbox();
         ClampToMoveBounds();
+    }
+
+    void UpdateAttackHitbox()
+    {
+        if (attackHitbox == null)
+            return;
+
+        float t = animator.GetCurrentAnimatorStateInfo(0).normalizedTime % 1f;
+        attackHitbox.enabled = isAttacking && t >= attackHitStart && t <= attackHitEnd;
+
+        Vector2 p = attackHitboxLocalPos;
+        if (spriteRenderer.flipX)
+            p.x = -p.x;
+        attackHitbox.transform.localPosition = p;
     }
 
     float FilterMoveAgainstBounds(float move)
