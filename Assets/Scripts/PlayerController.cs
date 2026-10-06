@@ -46,8 +46,20 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         float input = Input.GetAxisRaw("Horizontal");
-
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+
+        HandleAttack();         //攻击
+        HandleMove(input);      //移动
+        HandleJump();           //跳跃
+        HandleGravity();        //重力
+        HandleAnimator(input);  //动画
+        HandleFacing(input);    //面向
+
+        ClampToMoveBounds();    //限制移动范围
+    }
+
+    void HandleAttack()
+    {
         AnimatorStateInfo attackState = animator.GetCurrentAnimatorStateInfo(0);
         bool inAttack1 = attackState.IsName("Attack1");
         bool inAttack2 = attackState.IsName("Attack2");
@@ -58,12 +70,20 @@ public class PlayerController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.J) && isGrounded && !inAttack3)
             animator.SetTrigger("Attack");
 
+        UpdateAttackHitbox();
+    }
+
+    void HandleMove(float input)
+    {
         float move = 0f;
         if (!isAttacking)
             move = FilterMoveAgainstBounds(input);
 
         rb.velocity = new Vector2(move * moveSpeed, rb.velocity.y);
+    }
 
+    void HandleJump()
+    {
         // 按下跳跃：同一帧起跳并触发 Jump 动画（前摇与离地同步）
         if (Input.GetButtonDown("Jump") && isGrounded && !isAttacking)
         {
@@ -74,22 +94,27 @@ public class PlayerController : MonoBehaviour
         // 松开跳跃：如果还在上升，立刻削弱向上速度（短跳）
         if (Input.GetButtonUp("Jump") && rb.velocity.y > 0f)
             rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * jumpCutMultiplier);
+    }
 
-        // 下落时加重重力，手感更接近空洞骑士
+    void HandleGravity()
+    {
         if (rb.velocity.y < 0f)
             rb.gravityScale = baseGravityScale * fallGravityMultiplier;
         else
             rb.gravityScale = baseGravityScale;
+    }
 
+    void HandleAnimator(float input)
+    {
         animator.SetBool("IsWalking", input != 0f && isGrounded && !isAttacking);
         animator.SetBool("IsGrounded", isGrounded);
         animator.SetFloat("VelocityY", rb.velocity.y);
+    }
 
+    void HandleFacing(float input)
+    {
         if (!isAttacking && input != 0f)
             spriteRenderer.flipX = input < 0f;
-
-        UpdateAttackHitbox();
-        ClampToMoveBounds();
     }
 
     void UpdateAttackHitbox()
