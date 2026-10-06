@@ -82,7 +82,7 @@ AnimatorStateMachine:
     m_Position: {x: 370, y: 160, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 2044845487991485085}
-    m_Position: {x: 540, y: 40, z: 0}
+    m_Position: {x: 710, y: 100, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 642347522029625107}
     m_Position: {x: 680, y: 200, z: 0}
@@ -505,6 +505,7 @@ AnimatorState:
   m_OverrideDuration: 1
   m_Transitions:
   - {fileID: -1411769527295788278}
+  - {fileID: 5912513487645279926}
   m_StateMachineBehaviours: []
   m_Position: {x: 50, y: 50, z: 0}
   m_IKOnFeet: 0
@@ -521,6 +522,37 @@ AnimatorState:
   m_MirrorParameter: 
   m_CycleOffsetParameter: 
   m_TimeParameter: 
+--- !u!1101 &5912513487645279926
+AnimatorStateTransition:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_Conditions:
+  - m_ConditionMode: 1
+    m_ConditionEvent: IsGrounded
+    m_EventTreshold: 0
+  m_DstStateMachine: {fileID: 0}
+  m_DstState: {fileID: -6943291523029686957}
+  m_Solo: 0
+  m_Mute: 0
+  m_IsExit: 0
+  serializedVersion: 5
+  m_TransitionDuration: 0
+  m_TransitionOffset: 0
+  m_ExitTime: 0.25
+  m_PriorityOrder: 0
+  m_HasExitTime: 0
+  m_HasFixedDuration: 1
+  m_InterruptionSource: 0
+  m_OrderedInterruption: 1
+  m_CanTransitionToSelf: 1
+  m_TransitionBlendMode: 0
+  m_PoseBlendCurveMode: 0
+  m_RootMotionBlendCurveMode: 0
+  m_PoseBlendCurveKeyframes: []
+  m_RootMotionBlendCurveKeyframes: []
 --- !u!1102 &9157701650210073865
 AnimatorState:
   serializedVersion: 7
