@@ -9,6 +9,7 @@ public class PlayerController : MonoBehaviour
     [Range(0f, 1f)]
     public float jumpCutMultiplier = 0.4f;
     public float fallGravityMultiplier = 1.8f;
+    public float rollSpeed = 6f;
     public Transform groundCheck;
     public float groundCheckRadius = 0.08f;
     public LayerMask groundLayer;
@@ -26,7 +27,9 @@ public class PlayerController : MonoBehaviour
 
     bool isGrounded;
     bool isAttacking;
+    bool isRolling;
     float baseGravityScale;
+    float rollDirection = 1f;
     Vector2 attackHitboxLocalPos;
 
     void Start()
@@ -48,44 +51,66 @@ public class PlayerController : MonoBehaviour
         float input = Input.GetAxisRaw("Horizontal");
         isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
-        HandleAttack();         //攻击
-        HandleMove(input);      //移动
-        HandleJump();           //跳跃
-        HandleGravity();        //重力
-        HandleAnimator(input);  //动画
-        HandleFacing(input);    //面向
+        HandleAttack();
+        HandleRoll(input);
+        HandleMove(input);
+        HandleJump();
+        HandleGravity();
+        HandleAnimator(input);
+        HandleFacing(input);
+        UpdateAttackHitbox();
 
-        ClampToMoveBounds();    //限制移动范围
+        ClampToMoveBounds();
     }
 
     void HandleAttack()
     {
-        AnimatorStateInfo attackState = animator.GetCurrentAnimatorStateInfo(0);
-        bool inAttack1 = attackState.IsName("Attack1");
-        bool inAttack2 = attackState.IsName("Attack2");
-        bool inAttack3 = attackState.IsName("Attack3");
+        AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(0);
+        bool inAttack1 = state.IsName("Attack1");
+        bool inAttack2 = state.IsName("Attack2");
+        bool inAttack3 = state.IsName("Attack3");
         isAttacking = inAttack1 || inAttack2 || inAttack3;
 
-        // 地上起手，或连招中再按 J；第三刀期间不再起手
-        if (Input.GetKeyDown(KeyCode.J) && isGrounded && !inAttack3)
+        // 地上起手，或连招中再按 J；第三刀 / 翻滚期间不再起手
+        if (Input.GetKeyDown(KeyCode.J) && isGrounded && !inAttack3 && !isRolling)
             animator.SetTrigger("Attack");
+    }
 
-        UpdateAttackHitbox();
+    void HandleRoll(float input)
+    {
+        isRolling = animator.GetCurrentAnimatorStateInfo(0).IsName("Roll");
+
+        // 地上可翻滚；攻击中也可打断进翻滚，翻滚中不能再按 L
+        if (Input.GetKeyDown(KeyCode.L) && isGrounded && !isRolling)
+        {
+            if (input != 0f)
+                rollDirection = input > 0f ? 1f : -1f;
+            else
+                rollDirection = spriteRenderer.flipX ? -1f : 1f;
+
+            animator.ResetTrigger("Attack");
+            animator.SetTrigger("Roll");
+            isAttacking = false;
+            isRolling = true;
+        }
     }
 
     void HandleMove(float input)
     {
         float move = 0f;
-        if (!isAttacking)
+        if (isRolling)
+            move = FilterMoveAgainstBounds(rollDirection);
+        else if (!isAttacking)
             move = FilterMoveAgainstBounds(input);
 
-        rb.velocity = new Vector2(move * moveSpeed, rb.velocity.y);
+        float speed = isRolling ? rollSpeed : moveSpeed;
+        rb.velocity = new Vector2(move * speed, rb.velocity.y);
     }
 
     void HandleJump()
     {
         // 按下跳跃：同一帧起跳并触发 Jump 动画（前摇与离地同步）
-        if (Input.GetButtonDown("Jump") && isGrounded && !isAttacking)
+        if (Input.GetButtonDown("Jump") && isGrounded && !isAttacking && !isRolling)
         {
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
             animator.SetTrigger("Jump");
@@ -106,13 +131,19 @@ public class PlayerController : MonoBehaviour
 
     void HandleAnimator(float input)
     {
-        animator.SetBool("IsWalking", input != 0f && isGrounded && !isAttacking);
+        animator.SetBool("IsWalking", input != 0f && isGrounded && !isAttacking && !isRolling);
         animator.SetBool("IsGrounded", isGrounded);
         animator.SetFloat("VelocityY", rb.velocity.y);
     }
 
     void HandleFacing(float input)
     {
+        if (isRolling)
+        {
+            spriteRenderer.flipX = rollDirection < 0f;
+            return;
+        }
+
         if (!isAttacking && input != 0f)
             spriteRenderer.flipX = input < 0f;
     }
