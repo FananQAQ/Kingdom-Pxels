@@ -15,10 +15,6 @@ public class PlayerController : MonoBehaviour
     public LayerMask groundLayer;
     public Collider2D moveBounds;
     public Collider2D attackHitbox;
-    [Range(0f, 1f)]
-    public float attackHitStart = 0.33f;
-    [Range(0f, 1f)]
-    public float attackHitEnd = 0.75f;
 
     Rigidbody2D rb;
     Animator animator;
@@ -58,9 +54,27 @@ public class PlayerController : MonoBehaviour
         HandleGravity();
         HandleAnimator(input);
         HandleFacing(input);
-        UpdateAttackHitbox();
+        UpdateAttackHitboxFacing();
+
+        // 攻击被打断或结束时，兜底关掉判定（防止 Animation Event 没跑到 Disable）
+        if (!isAttacking)
+            DisableAttackHitbox();
 
         ClampToMoveBounds();
+    }
+
+    // Animation Event：刀光出现时调用
+    public void EnableAttackHitbox()
+    {
+        if (attackHitbox != null && isAttacking && !isRolling)
+            attackHitbox.enabled = true;
+    }
+
+    // Animation Event：刀光结束时调用
+    public void DisableAttackHitbox()
+    {
+        if (attackHitbox != null)
+            attackHitbox.enabled = false;
     }
 
     void HandleAttack()
@@ -92,6 +106,7 @@ public class PlayerController : MonoBehaviour
             animator.SetTrigger("Roll");
             isAttacking = false;
             isRolling = true;
+            DisableAttackHitbox();
         }
     }
 
@@ -148,13 +163,10 @@ public class PlayerController : MonoBehaviour
             spriteRenderer.flipX = input < 0f;
     }
 
-    void UpdateAttackHitbox()
+    void UpdateAttackHitboxFacing()
     {
         if (attackHitbox == null)
             return;
-
-        float t = animator.GetCurrentAnimatorStateInfo(0).normalizedTime % 1f;
-        attackHitbox.enabled = isAttacking && t >= attackHitStart && t <= attackHitEnd;
 
         Vector2 p = attackHitboxLocalPos;
         if (spriteRenderer.flipX)
